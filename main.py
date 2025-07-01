@@ -65,13 +65,14 @@ system_prompt = """
 You are a helpful AI coding agent.
 
 When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
-
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 - List files and directories
 - Read file contents
 - Execute Python files with optional arguments
 - Write or overwrite files
 
 All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+When you have fully addressed the user's initial request, provide your answer and conclude the conversation.
 """
 
 schema_get_files_info = types.FunctionDeclaration(
@@ -149,19 +150,27 @@ config=types.GenerateContentConfig(
 verbose = False
 if '--verbose' in sys.argv:
     verbose = True
-response = client.models.generate_content(model=model_name,contents=messages, config=config,)
-if response.function_calls:
-    for function_call_part in response.function_calls:
-        function_call_result = call_function(function_call_part, verbose)
-        
-        if not function_call_result.parts[0].function_response.response:
-            raise Exception("Function call failed - no response")
-        
-        if verbose:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
-        
-else:
-    print(response.text)
+for i in range(20):
+    response = client.models.generate_content(model=model_name,contents=messages, config=config,)
+    if response.candidates:
+        for vague in response.candidates:
+            response1 = vague.content
+            messages.append(response1)
+    if response.function_calls:
+        for function_call_part in response.function_calls:
+            function_call_result = call_function(function_call_part, verbose)
+            messages.append(function_call_result)
+
+            if not function_call_result.parts[0].function_response.response:
+                raise Exception("Function call failed - no response")
+            
+            if verbose:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
+            
+    else:
+        print(response.text)
+        break
+
 if '--verbose' in sys.argv: 
     print("User prompt:", user_prompt)
     print("Prompt tokens:", response.usage_metadata.prompt_token_count)
